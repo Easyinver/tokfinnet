@@ -16,3 +16,11 @@ Esqueleto de pallet FRAME para Tokfinet.
 * Cada DAppCell puede transformarse en una **TokenFactory** (ERC20 / ERC721).
 * La creación de un token **no es libre**, está mediada por este flujo → asegura calidad + evita spam.
 * DevTeam recibe recompensas (devTokens, rewards DAO).
+
+
+syncra:    DAo dev website model> https://syncra.xyz/
+
+myriad:  social network   node, api, web, federation, chats
+	https://github.com/myriadsocial
+	https://grants.web3.foundation/applications/myriad_social
+	https://www.myriad.social/about

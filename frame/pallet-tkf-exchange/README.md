@@ -7,28 +7,20 @@ Este pallet proporciona almacenamiento simple de un valor entero en la blockchai
 y puede servir como plantilla para desarrollar nuevos pallets.
 
 ## ⚙️ Integración en Runtime
-
 1. Añadir dependencia en `template/runtime/Cargo.toml`:
-
-```toml
-pallet-tkf-exchange = { workspace = true, optional = true }
-```
-
+    ```toml
+    pallet-tkf-exchange = { workspace = true, optional = true }
+    ```
 2. Activar el feature en la sección `std`:
-
-```toml
-"pallet-tkf-exchange/std",
-```
-
+    ```toml
+    "pallet-tkf-exchange/std",
+    ```
 3. Registrar en el runtime (`runtime/src/lib.rs`):
+    ```rust
+    #[runtime::pallet_index(<INDEX>)]
+    pub type TkfExchange = pallet_tkf_exchange;
 
-```rust
-#[runtime::pallet_index(<INDEX>)]
-pub type TkfExchange = pallet_tkf_exchange;
-
-impl pallet_tkf_exchange::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-}
+    impl pallet_tkf_exchange::Config for Runtime {}
 ```
 
 ## 🚀 Uso
@@ -37,3 +29,4 @@ impl pallet_tkf_exchange::Config for Runtime {
 
 ---
 Generado automáticamente con `scripts/new-pallet.sh`.
+

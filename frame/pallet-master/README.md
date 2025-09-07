@@ -18,3 +18,12 @@ Déjame organizarlo en flujo **secuencial**, porque esto se alinea perfecto con 
 * FixBlock
 * Parallel processing
 
+
+ecointer:  Dao, node, parachain, wallet, movil cli, node map, frontend, pallets, workers(integritee bases)
+	https://github.com/encointer/encointer-worker/blob/master/local-setup/README.md
+
+integritee:  node, workers, parachain, pallets
+	https://github.com/integritee-network
+	https://docs.integritee.network/
+
+    

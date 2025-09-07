@@ -18,3 +18,9 @@ Esqueleto de pallet FRAME para Tokfinet.
 * Gestiona el **UBI Arena** → donde los nodos obtienen recompensas por mantener el sistema operativo.
 
 
+GameDAO > democratization, governance and ownership for video games, metaverses, esports and the creative industry
+	https://docs.gamedao.co/gamedao/readme
+	https://github.com/gamedaoco
+	https://github.com/gamedaoco/gamedao-protocol.git
+
+    

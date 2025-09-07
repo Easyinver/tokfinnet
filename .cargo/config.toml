@@ -1,0 +1,8 @@
+[build]
+target-dir = "target"
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[term]
+verbose = true

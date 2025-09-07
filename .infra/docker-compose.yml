@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+  bootnode:
+    image: tokfinnet-node:latest
+    container_name: bootnode
+    command: >
+      tokfin-node
+      --chain /etc/tokfinnet/tokfin_raw.json
+      --base-path /data/bootnode
+      --name BootnodeTokfin
+      --node-key 0000000000000000000000000000000000000000000000000000000000000001
+      --port 30333
+      --ws-port 9944
+      --rpc-port 9933
+    volumes:
+      - ./chain-specs:/etc/tokfinnet
+      - ./data/bootnode:/data/bootnode
+    ports:
+      - "30333:30333"
+      - "9944:9944"
+      - "9933:9933"
+
+  validator1:
+    image: tokfinnet-node:latest
+    container_name: validator1
+    depends_on:
+      - bootnode
+    command: >
+      tokfin-node
+      --chain /etc/tokfinnet/tokfin_raw.json
+      --base-path /data/validator1
+      --name Validator1
+      --validator
+      --port 30334
+      --ws-port 9945
+      --rpc-port 9934
+      --bootnodes /ip4/BOOTNODE_IP/tcp/30333/p2p/BOOTNODE_PEERID
+    volumes:
+      - ./chain-specs:/etc/tokfinnet
+      - ./data/validator1:/data/validator1
+    ports:
+      - "30334:30334"
+      - "9945:9945"
+      - "9934:9934"
+
+  validator2:
+    image: tokfinnet-node:latest
+    container_name: validator2
+    depends_on:
+      - bootnode
+    command: >
+      tokfin-node
+      --chain /etc/tokfinnet/tokfin_raw.json
+      --base-path /data/validator2
+      --name Validator2
+      --validator
+      --port 30335
+      --ws-port 9946
+      --rpc-port 9935
+      --bootnodes /ip4/BOOTNODE_IP/tcp/30333/p2p/BOOTNODE_PEERID
+    volumes:
+      - ./chain-specs:/etc/tokfinnet
+      - ./data/validator2:/data/validator2
+    ports:
+      - "30335:30335"
+      - "9946:9946"
+      - "9935:9935"
+
+  validator3:
+    image: tokfinnet-node:latest
+    container_name: validator3
+    depends_on:
+      - bootnode
+    command: >
+      tokfin-node
+      --chain /etc/tokfinnet/tokfin_raw.json
+      --base-path /data/validator3
+      --name Validator3
+      --validator
+      --port 30336
+      --ws-port 9947
+      --rpc-port 9936
+      --bootnodes /ip4/BOOTNODE_IP/tcp/30333/p2p/BOOTNODE_PEERID
+    volumes:
+      - ./chain-specs:/etc/tokfinnet
+      - ./data/validator3:/data/validator3
+    ports:
+      - "30336:30336"
+      - "9947:9947"
+      - "9936:9936"
