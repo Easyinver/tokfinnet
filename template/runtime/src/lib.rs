@@ -58,6 +58,10 @@ use pallet_evm::{
 	Account as EVMAccount, EnsureAccountId20, FeeCalculator, IdentityAddressMapping, Runner,
 };
 
+use sp_runtime::traits::OpaqueKeys;
+//use frame_support::Never;
+
+
 // A few exports that help ease life for downstream crates.
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
@@ -505,6 +509,9 @@ mod runtime {
 	)]
 	pub struct Runtime;
  
+	#[runtime::pallet_index(23)]
+	pub type Session = pallet_session;
+ 
 	#[runtime::pallet_index(22)]
 	pub type Tokfindashboard = pallet_tkf_dashboard;
  
@@ -589,6 +596,34 @@ impl<B> Default for TransactionConverter<B> {
 impl pallet_tkf_exchange::Config for Runtime {}
 
 impl pallet_tkf_master::Config for Runtime {}
+
+impl pallet_session::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type ValidatorId = AccountId;
+    type ValidatorIdOf = sp_runtime::traits::ConvertInto; // AccountId -> Option<AccountId>
+    type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+    type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+    type SessionManager = (); // no usamos staking
+    type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+    type Keys = opaque::SessionKeys;
+    type WeightInfo = ();
+    type DisablingStrategy = (); // deshabilitación desactivada
+}
+
+
+pub struct IdentityCollator;
+impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for IdentityCollator {
+    fn convert(id: AccountId) -> Option<AccountId> {
+        Some(id)
+    }
+}
+
+
+parameter_types! {
+    pub const Period: u32 = 10;
+    pub const Offset: u32 = 0;
+}
+
 
 impl<B: BlockT> fp_rpc::ConvertTransaction<<B as BlockT>::Extrinsic> for TransactionConverter<B> {
 	fn convert_transaction(

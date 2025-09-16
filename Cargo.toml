@@ -165,6 +165,7 @@ pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2506", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2506", default-features = false }
 pallet-assets = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2506", default-features = false }
+pallet-session = { git = "httos://github.com/paritytech/polkadot-sdk", branch = "stable2506", default-features = false }
 # Substrate Utility
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2506" }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2506" }
@@ -237,9 +238,18 @@ precompile-utils = { path = "precompiles", default-features = false }
 # Tokfin Template
 tokfin-runtime = { path = "template/runtime", default-features = false }
 
+
+[patch.crates-io]
+# target-lexicon = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2506",  default-features = false ,package = "target-lexicon" }
+# target-lexicon = { git = "https://github.com/paritytech/rustc_tools", branch = "polkadot-v1.8.0", package = "target-lexicon" }
+# target-lexicon = { version = "0.12.16"}
+# target-lexicom = {git = "https://github.com/bytecodealliance/target-lexicon", branch = "main", package = "target-lexicon" }
+tokfin-runtime = { path = "./template/runtime" }
+
 [profile.release]
 # Substrate runtime requires unwinding.
 panic = "unwind"
+lto = true
 
 [profile.production]
 inherits = "release"
@@ -251,3 +261,4 @@ codegen-units = 1
 
 # [patch.crates-io]
 # trie-db = { path = "./trie/trie-db" }
+

@@ -33,6 +33,14 @@ where
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
+use tokfin_runtime::opaque::SessionKeys;
+
+fn session_keys(aura: AuraId, grandpa: GrandpaId) -> SessionKeys {
+    SessionKeys { aura, grandpa }
+}
+
+
+
 /// Generate Aura/Grandpa authority keys from seed name.
 pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
     (get_from_seed::<AuraId>(s), get_from_seed::<GrandpaId>(s))
@@ -45,6 +53,9 @@ fn properties() -> Properties {
     properties.insert("ss58Format".into(), SS58Prefix::get().into());
     properties
 }
+
+
+
 
 const UNITS: Balance = 1_000_000_000_000_000_000; // 10^18
 
@@ -184,6 +195,29 @@ fn testnet_genesis_json(
         "balances": { "balances": balances },
         "aura": { "authorities": initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>() },
         "grandpa": { "authorities": initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect::<Vec<_>>() },
+
+//*********************
+//        "session": {
+//            "keys": initial_authorities.iter().map(|x| {
+//                let acc: AccountId = x.0.clone();
+//                (acc.clone(), acc, session_keys(x.0.clone(), x.1.clone()))
+//            }).collect::<Vec<_>>()
+//        },
+//*********************
+        "session" :{ 
+            "keys": initial_authorities.iter()
+                .enumerate()
+                .map(|(i, x)| {
+                    let acc: AccountId = endowed_accounts[i].clone();
+                    (
+                        acc.clone(),  // stash
+                        acc,          // controller
+                        session_keys(x.0.clone(), x.1.clone()),
+                    )
+                })
+                .collect::<Vec<(AccountId, AccountId, SessionKeys)>>(),
+        },
+//*********************************
 
         // Frontier/evm
         "evmChainId": { "chainId": chain_id },

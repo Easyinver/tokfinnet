@@ -4,10 +4,10 @@
   "chainType": "Live",
   "bootNodes": [],
   "telemetryEndpoints": null,
-  "protocolId": "tokfin",
+  "protocolId": "tkfnet",
   "properties": {
-    "tokenSymbol": "TOK",
-    "tokenDecimals": 12
+    "tokenSymbol": "TKF",
+    "tokenDecimals": 18
   },
   "genesis": {
     "runtime": {
