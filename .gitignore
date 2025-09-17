@@ -63,6 +63,7 @@ Desktop.ini
 # JetBrains IDEs
 .idea/
 *.iml
+*.tar
 
 # -----------------------------
 # Other temporary files
@@ -77,3 +78,4 @@ Desktop.ini
 # -----------------------------
 .envrc
 .direnv/
+*.tar
