@@ -31,7 +31,7 @@ tokio = { workspace = true, features = ["sync"] }
 # Substrate
 prometheus-endpoint = { workspace = true }
 sc-client-api = { workspace = true }
-sc-consensus-aura = { workspace = true, optional = true }
+sc-consensus-babe = { workspace = true, optional = true }
 sc-network = { workspace = true }
 sc-network-sync = { workspace = true }
 sc-rpc = { workspace = true }
@@ -42,7 +42,7 @@ sp-api = { workspace = true, features = ["default"] }
 sp-block-builder = { workspace = true, features = ["default"] }
 sp-blockchain = { workspace = true }
 sp-consensus = { workspace = true }
-sp-consensus-aura = { workspace = true, features = ["default"], optional = true }
+sp-consensus-babe = { workspace = true, features = ["default"], optional = true }
 sp-core = { workspace = true, features = ["default"] }
 sp-externalities = { workspace = true, features = ["default"] }
 sp-inherents = { workspace = true, features = ["default"] }
@@ -73,10 +73,10 @@ substrate-test-runtime-client = { workspace = true }
 fc-db = { workspace = true }
 
 [features]
-default = ["aura", "rocksdb"]
-aura = [
-	"sc-consensus-aura",
-	"sp-consensus-aura",
+default = ["babe", "rocksdb"]
+babe = [
+	"sc-consensus-babe",
+	"sp-consensus-babe",
 	"sp-timestamp",
 ]
 rocksdb = [

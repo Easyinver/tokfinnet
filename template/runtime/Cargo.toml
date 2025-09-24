@@ -27,7 +27,7 @@ scale-info = { workspace = true }
 # Substrate
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
-sp-consensus-aura = { workspace = true }
+sp-consensus-babe = { workspace = true }
 sp-consensus-grandpa = { workspace = true }
 sp-core = { workspace = true }
 sp-genesis-builder = { workspace = true }
@@ -44,7 +44,7 @@ frame-support = { workspace = true, features = ["experimental"] }
 frame-system = { workspace = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api = { workspace = true }
-pallet-aura = { workspace = true }
+pallet-babe = { workspace = true }
 pallet-balances = { workspace = true, features = ["insecure_zero_ed"] }
 pallet-grandpa = { workspace = true }
 pallet-sudo = { workspace = true }
@@ -101,7 +101,7 @@ std = [
 	# Substrate
 	"sp-api/std",
 	"sp-block-builder/std",
-	"sp-consensus-aura/std",
+	"sp-consensus-babe/std",
 	"sp-consensus-grandpa/std",
 	"sp-core/std",
 	"sp-genesis-builder/std",
@@ -119,7 +119,7 @@ std = [
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",
 	"frame-system-benchmarking?/std",
-	"pallet-aura/std",
+	"pallet-babe/std",
 	"pallet-balances/std",
 	"pallet-grandpa/std",
 	"pallet-sudo/std",
@@ -163,13 +163,13 @@ runtime-benchmarks = [
 	"polkadot-runtime-common/runtime-benchmarks",
 ]
 
-[profile.release]
+#[profile.release]
 # For native builds
-panic = "unwind"
+#panic = "unwind"
 
-[profile.release.build-override]
+#[profile.release.build-override]
 # This is for dependencies that need a different optimization.
-codegen-units = 1
+#codegen-units = 1
 
 # [target.'cfg(target_arch = "wasm32")']
 # [target.'cfg(target_arch = "wasm32")'.profile.release]

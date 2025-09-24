@@ -3,8 +3,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
-#![allow(clippy::new_without_default, clippy::or_fun_call)]
-#![cfg_attr(feature = "runtime-benchmarks", warn(unused_crate_dependencies))]
+//#![allow(clippy::new_without_default, clippy::or_fun_call)]
+//#![cfg_attr(feature = "runtime-benchmarks", warn(unused_crate_dependencies))]
 
 extern crate alloc;
 
@@ -14,11 +14,12 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use alloc::{borrow::Cow, vec, vec::Vec};
 use core::marker::PhantomData;
-use ethereum::AuthorizationList;
+// use ethereum::AuthorizationList;
 use scale_codec::{Decode, Encode};
 use sp_api::impl_runtime_apis;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_consensus_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+//use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+//use sp_consensus_babe::AuthorityId as BabeId;
+//use sp_consensus_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_core::{
 	crypto::{ByteArray, KeyTypeId},
 	ConstU128, OpaqueMetadata, H160, H256, U256,
@@ -28,9 +29,10 @@ use sp_runtime::{
 	traits::{
 		BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Get, IdentifyAccount,
 		IdentityLookup, NumberFor, PostDispatchInfoOf, UniqueSaturatedInto, Verify,
+		ConstU8, ConstU32, ConstU64,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
-	ApplyExtrinsicResult, ConsensusEngineId, ExtrinsicInclusionMode, Perbill, Permill,
+	ConsensusEngineId, ExtrinsicInclusionMode, Perbill, Permill,
 };
 use sp_version::RuntimeVersion;
 
@@ -43,7 +45,7 @@ use frame_support::{
 	derive_impl,
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
-	traits::{ConstBool, ConstU32, ConstU64, ConstU8, FindAuthor, OnFinalize, OnTimestampSet},
+	traits::{FindAuthor, OnFinalize},
 	weights::{constants::WEIGHT_REF_TIME_PER_MILLIS, IdentityFee, Weight},
 };
 use pallet_transaction_payment::FungibleAdapter;
@@ -59,8 +61,11 @@ use pallet_evm::{
 };
 
 use sp_runtime::traits::OpaqueKeys;
+use sp_runtime::ApplyExtrinsicResult;
 //use frame_support::Never;
-
+//use sp_session::MembershipProof;
+use sp_consensus_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+use ethereum::AuthorizationList;
 
 // A few exports that help ease life for downstream crates.
 pub use frame_system::Call as SystemCall;
@@ -150,11 +155,54 @@ pub type Executive = frame_executive::Executive<
 >;
 
 // Time is measured by number of blocks.
-pub const MILLISECS_PER_BLOCK: u64 = 6000;
-pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
+pub const MILLISECS_PER_BLOCK: u64 = 6000;
+pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
+pub const EPOCH_DURATION_IN_BLOCKS: u64 = 4 * HOURS as u64;
+
+// BABE Epoch configuration
+pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
+	sp_consensus_babe::BabeEpochConfiguration {
+		c: (1, 4), // 1 in 4 slots will be primary (roughly)
+		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
+	};
+
+/*
+impl sp_consensus_babe::BabeApi<Block> for Runtime {
+    fn configuration() -> sp_consensus_babe::BabeConfiguration {
+        let epoch_config = Babe::epoch_config().unwrap_or(BABE_GENESIS_EPOCH_CONFIG);
+        sp_consensus_babe::BabeConfiguration {
+            slot_duration: Babe::slot_duration(),
+            epoch_length: EpochDuration::get(),
+            c: epoch_config.c,
+            authorities: Babe::authorities().to_vec(),
+            randomness: Babe::randomness(),
+            allowed_slots: epoch_config.allowed_slots,
+        }
+    }
+    // ... resto de métodos
+}
+
+*/
+
+// use sp_runtime::traits::Saturating;
+
+/*
+impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
+    fn find_author<'a, I>(digests: I) -> Option<H160>
+    where
+        I: 'a + IntoIterator<Item = (sp_runtime::ConsensusEngineId, &'a [u8])>,
+    {
+        if let Some(author_index) = F::find_author(digests) {
+            let authority_id = Babe::authorities()[author_index as usize].clone();
+            return Some(H160::from_slice(&authority_id.0.to_raw_vec()[4..24]));
+        }
+        None
+    }
+}
+*/
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -174,7 +222,7 @@ pub mod opaque {
 
 	impl_opaque_keys! {
 		pub struct SessionKeys {
-			pub aura: Aura,
+			pub babe: Babe,
 			pub grandpa: Grandpa,
 		}
 	}
@@ -187,7 +235,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 1,
-	apis: RUNTIME_API_VERSIONS,
+	apis: sp_version::create_apis_vec!([]),  // apis: RUNTIME_APIS,
 	transaction_version: 1,
 	system_version: 1,
 };
@@ -252,6 +300,7 @@ impl frame_system::Config for Runtime {
 	type MaxConsumers = ConstU32<16>;
 }
 
+/*
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type MaxAuthorities = ConstU32<32>;
@@ -259,6 +308,7 @@ impl pallet_aura::Config for Runtime {
 	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 	type SlotDuration = pallet_aura::MinimumPeriodTimesTwo<Runtime>;
 }
+*/
 
 impl pallet_grandpa::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -279,6 +329,7 @@ parameter_types! {
 }
 
 pub struct ConsensusOnTimestampSet<T>(PhantomData<T>);
+/*
 impl<T: pallet_aura::Config> OnTimestampSet<T::Moment> for ConsensusOnTimestampSet<T> {
 	fn on_timestamp_set(moment: T::Moment) {
 		if EnableManualSeal::get() {
@@ -287,10 +338,11 @@ impl<T: pallet_aura::Config> OnTimestampSet<T::Moment> for ConsensusOnTimestampS
 		<pallet_aura::Pallet<T> as OnTimestampSet<T::Moment>>::on_timestamp_set(moment)
 	}
 }
+*/
 
 impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
-	type OnTimestampSet = ConsensusOnTimestampSet<Self>;
+	type OnTimestampSet = Babe;  //ConsensusOnTimestampSet<Self>;
 	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
 	type WeightInfo = ();
 }
@@ -342,8 +394,9 @@ impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
 	{
 		if let Some(author_index) = F::find_author(digests) {
 			let authority_id =
-				pallet_aura::Authorities::<Runtime>::get()[author_index as usize].clone();
-			return Some(H160::from_slice(&authority_id.to_raw_vec()[4..24]));
+				pallet_babe::Authorities::<Runtime>::get()[author_index as usize].clone();
+			// return Some(H160::from_slice(&authority_id.to_raw_vec()[4..24]));
+			return Some(H160::from_slice(&authority_id.0.to_raw_vec()[4..24]));
 		}
 		None
 	}
@@ -353,6 +406,7 @@ const BLOCK_GAS_LIMIT: u64 = 75_000_000;
 const MAX_POV_SIZE: u64 = 5 * 1024 * 1024;
 /// The maximum storage growth per block in bytes.
 const MAX_STORAGE_GROWTH: u64 = 400 * 1024;
+
 
 parameter_types! {
 	pub BlockGasLimit: U256 = U256::from(BLOCK_GAS_LIMIT);
@@ -379,7 +433,8 @@ impl pallet_evm::Config for Runtime {
 	type Runner = pallet_evm::runner::stack::Runner<Self>;
 	type OnChargeTransaction = ();
 	type OnCreate = ();
-	type FindAuthor = FindAuthorTruncated<Aura>;
+	type FindAuthor = FindAuthorTruncated<Babe>;
+	// type FindAuthor = pallet_evm::FindAuthorTruncated<Babe>;
 	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 	type Timestamp = Timestamp;
@@ -461,6 +516,24 @@ impl pallet_assets::Config for Runtime {
     type CallbackHandle = ();
 }
 
+parameter_types! {
+    pub const EpochDuration: u64 = EPOCH_DURATION_IN_BLOCKS;
+    pub const ExpectedBlockTime: u64 = MILLISECS_PER_BLOCK;
+    pub const MaxAuthorities: u32 = 32;
+}
+
+impl pallet_babe::Config for Runtime {
+    type EpochDuration = EpochDuration;
+    type ExpectedBlockTime = ExpectedBlockTime;
+    type EpochChangeTrigger = pallet_babe::ExternalTrigger;
+    type DisabledValidators = Session;
+    type WeightInfo = ();
+    type MaxAuthorities = MaxAuthorities;
+    type KeyOwnerProof = sp_session::MembershipProof;
+    type EquivocationReportSystem = (); // En lugar de HandleEquivocation
+	type MaxNominators = ConstU32<0>;
+}
+
 
 
 #[frame_support::pallet]
@@ -509,6 +582,9 @@ mod runtime {
 	)]
 	pub struct Runtime;
  
+	#[runtime::pallet_index(2)]
+	pub type Babe = pallet_babe;
+ 
 	#[runtime::pallet_index(23)]
 	pub type Session = pallet_session;
  
@@ -542,8 +618,8 @@ mod runtime {
 	#[runtime::pallet_index(1)]
 	pub type Timestamp = pallet_timestamp;
 
-	#[runtime::pallet_index(2)]
-	pub type Aura = pallet_aura;
+//	#[runtime::pallet_index(2)]
+//	pub type Aura = pallet_aura;
 
 	#[runtime::pallet_index(3)]
 	pub type Grandpa = pallet_grandpa;
@@ -601,8 +677,8 @@ impl pallet_session::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type ValidatorId = AccountId;
     type ValidatorIdOf = sp_runtime::traits::ConvertInto; // AccountId -> Option<AccountId>
-    type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-    type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+    type ShouldEndSession = Babe; //pallet_session::PeriodicSessions<Period, Offset>;
+    type NextSessionRotation = Babe; //pallet_session::PeriodicSessions<Period, Offset>;
     type SessionManager = (); // no usamos staking
     type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = opaque::SessionKeys;
@@ -709,20 +785,36 @@ mod benches {
 	);
 }
 
+/*
+#[sp_version::runtime_version]
+pub const VERSION: RuntimeVersion = RuntimeVersion {
+    spec_name: Cow::Borrowed("tokfin"),
+    impl_name: Cow::Borrowed("tokfin"),
+    authoring_version: 1,
+    spec_version: 1,
+    impl_version: 1,
+    apis: sp_version::create_apis_vec!([]), // Por ahora
+    transaction_version: 1,
+    system_version: 1,
+};
+*/
+
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
-		fn version() -> RuntimeVersion {
-			VERSION
-		}
 
-		fn execute_block(block: Block) {
-			Executive::execute_block(block)
-		}
+		//impl sp_api::Core<Block> for Runtime {
+			fn version() -> RuntimeVersion {
+				VERSION  // Ahora VERSION ya existe
+			}
 
-		fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
-			Executive::initialize_block(header)
+			fn execute_block(block: Block) {
+				Executive::execute_block(block)
+			}
+
+			fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
+				Executive::initialize_block(header)
+			}
 		}
-	}
 
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
@@ -801,6 +893,7 @@ impl_runtime_apis! {
 		}
 	}
 
+/*
 	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
 		fn slot_duration() -> sp_consensus_aura::SlotDuration {
 			sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
@@ -808,6 +901,47 @@ impl_runtime_apis! {
 
 		fn authorities() -> Vec<AuraId> {
 			pallet_aura::Authorities::<Runtime>::get().into_inner()
+		}
+	}
+*/
+
+	impl sp_consensus_babe::BabeApi<Block> for Runtime {
+		fn configuration() -> sp_consensus_babe::BabeConfiguration {
+			let epoch_config = Babe::epoch_config().unwrap_or(BABE_GENESIS_EPOCH_CONFIG);
+			sp_consensus_babe::BabeConfiguration {
+				slot_duration: Babe::slot_duration(),
+				epoch_length: EpochDuration::get(),
+				c: epoch_config.c,
+				authorities: Babe::authorities().to_vec(),
+				randomness: Babe::randomness(),
+				allowed_slots: epoch_config.allowed_slots,
+			}
+		}
+
+		fn current_epoch_start() -> sp_consensus_babe::Slot {
+			Babe::current_epoch_start()
+		}
+
+		fn current_epoch() -> sp_consensus_babe::Epoch {
+			Babe::current_epoch()
+		}
+
+		fn next_epoch() -> sp_consensus_babe::Epoch {
+			Babe::next_epoch()
+		}
+
+		fn generate_key_ownership_proof(
+			_slot: sp_consensus_babe::Slot,
+			_authority_id: sp_consensus_babe::AuthorityId,
+		) -> Option<sp_consensus_babe::OpaqueKeyOwnershipProof> {
+			None
+		}
+
+		fn submit_report_equivocation_unsigned_extrinsic(
+			_equivocation_proof: sp_consensus_babe::EquivocationProof<<Block as BlockT>::Header>,
+			_key_owner_proof: sp_consensus_babe::OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			None
 		}
 	}
 
@@ -1135,48 +1269,64 @@ impl_runtime_apis! {
 			)
 		}
 	}
+}
 
-	#[cfg(feature = "runtime-benchmarks")]
-	impl frame_benchmarking::Benchmark<Block> for Runtime {
-		fn benchmark_metadata(extra: bool) -> (
-			Vec<frame_benchmarking::BenchmarkList>,
-			Vec<frame_support::traits::StorageInfo>,
-		) {
-			use frame_benchmarking::{baseline, BenchmarkList};
-			use frame_support::traits::StorageInfoTrait;
+#[cfg(feature = "runtime-benchmarks")]
+impl frame_benchmarking::Benchmark<Block> for Runtime {
+	fn benchmark_metadata(extra: bool) -> (
+		Vec<frame_benchmarking::BenchmarkList>,
+		Vec<frame_support::traits::StorageInfo>,
+	) {
+		use frame_benchmarking::{BenchmarkList, Benchmarking};
+		use frame_support::traits::StorageInfoTrait;
 
-			use baseline::Pallet as BaselineBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
+		let mut list = Vec::<BenchmarkList>::new();
+		list_benchmarks!(list, extra);
 
-			let mut list = Vec::<BenchmarkList>::new();
-			list_benchmarks!(list, extra);
+		let storage_info = AllPalletsWithSystem::storage_info();
+		(list, storage_info)
+	}
 
-			let storage_info = AllPalletsWithSystem::storage_info();
-			(list, storage_info)
-		}
+	fn dispatch_benchmark(
+		config: frame_benchmarking::BenchmarkConfig
+	) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
+		use frame_benchmarking::{BenchmarkBatch, Benchmarking};
+		use frame_support::traits::TrackedStorageKey;
 
-		#[allow(non_local_definitions)]
-		fn dispatch_benchmark(
-			config: frame_benchmarking::BenchmarkConfig
-		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
-			use frame_benchmarking::{baseline, BenchmarkBatch};
-			use frame_support::traits::TrackedStorageKey;
+		let whitelist: Vec<TrackedStorageKey> = Vec::new();
+		let mut batches = Vec::<BenchmarkBatch>::new();
+		let params = (&config, &whitelist);
 
-			use baseline::Pallet as BaselineBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
-
-			impl baseline::Config for Runtime {}
-			impl frame_system_benchmarking::Config for Runtime {}
-
-			let whitelist: Vec<TrackedStorageKey> = Vec::new();
-
-			let mut batches = Vec::<BenchmarkBatch>::new();
-			let params = (&config, &whitelist);
-			add_benchmarks!(params, batches);
-			Ok(batches)
-		}
+		add_benchmarks!(params, batches);
+		Ok(batches)
 	}
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benches {
+    frame_benchmarking::define_benchmarks!(
+        [frame_benchmarking, BaselineBench::<Runtime>]
+        [frame_system, SystemBench::<Runtime>]
+        [pallet_balances, Balances]
+        [pallet_timestamp, Timestamp]
+        [pallet_sudo, Sudo]
+        [pallet_evm, EVM]
+    );
+}
+
+/*
+#[sp_version::runtime_version]
+pub const VERSION: RuntimeVersion = RuntimeVersion {
+    spec_name: Cow::Borrowed("tokfin"),
+    impl_name: Cow::Borrowed("tokfin"),
+    authoring_version: 1,
+    spec_version: 1,
+    impl_version: 1,
+    apis: RUNTIME_APIS, // Ahora ya existe
+    transaction_version: 1,
+    system_version: 1,
+};
+*/
 
 #[cfg(test)]
 mod tests {

@@ -15,7 +15,7 @@ use sc_rpc::SubscriptionTaskExecutor;
 use sc_service::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+//use sp_consensus_babe::{AuthorityId as BabeId, BabeApi };
 use sp_inherents::CreateInherentDataProviders;
 use sp_runtime::traits::Block as BlockT;
 // Runtime
@@ -63,7 +63,7 @@ where
 	B: BlockT,
 	C: CallApiAt<B> + ProvideRuntimeApi<B>,
 	C::Api: sp_block_builder::BlockBuilder<B>,
-	C::Api: sp_consensus_aura::AuraApi<B, AuraId>,
+	C::Api: sp_consensus_babe::BabeApi<B>,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<B, AccountId, Nonce>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<B, Balance>,
 	C::Api: fp_rpc::ConvertTransactionRuntimeApi<B>,

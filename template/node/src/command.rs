@@ -8,7 +8,9 @@ use fc_db::kv::tokfin_database_dir;
 use crate::{
 	chain_spec,
 	cli::{Cli, Subcommand},
-	service::{self, db_config_dir},
+//	service::{self, db_config_dir},
+	service::self,
+	eth::db_config_dir,
 };
 
 #[cfg(feature = "runtime-benchmarks")]

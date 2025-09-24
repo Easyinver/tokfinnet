@@ -162,48 +162,55 @@ impl<B: BlockT> ConsensusDataProvider<B> for () {
 	}
 }
 
-#[cfg(feature = "aura")]
-pub use self::aura::AuraConsensusDataProvider;
-#[cfg(feature = "aura")]
-mod aura {
+#[cfg(feature = "babe")]
+pub use self::babe::BabeConsensusDataProvider;
+#[cfg(feature = "babe")]
+mod babe {
 	use super::*;
 	use sc_client_api::{AuxStore, UsageProvider};
-	use sp_consensus_aura::{
-		digests::CompatibleDigestItem,
-		sr25519::{AuthorityId, AuthoritySignature},
-		AuraApi, Slot, SlotDuration,
+	use sp_blockchain::HeaderBackend;
+	use sp_consensus_babe::{
+		digests::{CompatibleDigestItem, PreDigest, PrimaryPreDigest},
+		BabeApi, Slot, SlotDuration, VrfSignature,
 	};
 	use sp_runtime::generic::DigestItem;
 	use sp_timestamp::TimestampInherentData;
 	use std::{marker::PhantomData, sync::Arc};
 
-	/// Consensus data provider for Aura.
-	pub struct AuraConsensusDataProvider<B, C> {
+	/// Consensus data provider for Babe - MVP version for 10 fixed validators
+	pub struct BabeConsensusDataProvider<B, C> {
 		// slot duration
 		slot_duration: SlotDuration,
 		// phantom data for required generics
 		_phantom: PhantomData<(B, C)>,
 	}
 
-	impl<B, C> AuraConsensusDataProvider<B, C>
+	impl<B, C> BabeConsensusDataProvider<B, C>
 	where
 		B: BlockT,
-		C: AuxStore + ProvideRuntimeApi<B> + UsageProvider<B>,
-		C::Api: AuraApi<B, AuthorityId>,
+		C: AuxStore + ProvideRuntimeApi<B> + UsageProvider<B> + HeaderBackend<B>,
+		C::Api: BabeApi<B>,
 	{
-		/// Creates a new instance of the [`AuraConsensusDataProvider`], requires that `client`
-		/// implements [`sp_consensus_aura::AuraApi`]
-		pub fn new(client: Arc<C>) -> Self {
-			let slot_duration = sc_consensus_aura::slot_duration(&*client)
-				.expect("slot_duration is always present; qed.");
-			Self {
+		/// Creates a new instance of the [`BabeConsensusDataProvider`], requires that `client`
+		/// implements [`sp_consensus_babe::BabeApi`]
+		pub fn new(client: Arc<C>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+			// Obtener la configuración BABE del runtime API
+			let api = client.runtime_api();
+			let best_hash = client.info().best_hash;
+			
+			let babe_config = api.configuration(best_hash)
+				.map_err(|e| format!("Failed to get BABE configuration: {:?}", e))?;
+			
+			let slot_duration = babe_config.slot_duration();
+			
+			Ok(Self {
 				slot_duration,
 				_phantom: PhantomData,
-			}
+			})
 		}
 	}
 
-	impl<B: BlockT, C: Send + Sync> ConsensusDataProvider<B> for AuraConsensusDataProvider<B, C> {
+	impl<B: BlockT, C: Send + Sync> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C> {
 		fn create_digest(
 			&self,
 			_parent: &B::Header,
@@ -213,10 +220,33 @@ mod aura {
 				.timestamp_inherent_data()?
 				.expect("Timestamp is always present; qed");
 
-			let digest_item =
-				<DigestItem as CompatibleDigestItem<AuthoritySignature>>::aura_pre_digest(
-					Slot::from_timestamp(timestamp, self.slot_duration),
-				);
+			let slot = Slot::from_timestamp(timestamp, self.slot_duration);
+			
+			// MVP: Usamos authority_index fijo para simplificar
+			// Con 10 validadores fijos esto es suficiente para el MVP
+			let authority_index = 0u32;
+			
+			// MVP: Crear VRF signature usando construcción manual
+			let vrf_signature = unsafe { 
+				// Para MVP, creamos una VrfSignature zero-inicializada
+				std::mem::zeroed::<VrfSignature>()
+			};
+			
+			log::debug!(
+				target: "babe-pending-mvp", 
+				"Creating BABE digest for MVP - slot={:?}, authority_index={}", 
+				slot, 
+				authority_index
+			);
+			
+			// Crear el PreDigest apropiado para BABE
+			let pre_digest = PreDigest::Primary(PrimaryPreDigest {
+				authority_index,
+				slot,
+				vrf_signature,
+			});
+
+			let digest_item = DigestItem::babe_pre_digest(pre_digest);
 
 			Ok(Digest {
 				logs: vec![digest_item],
