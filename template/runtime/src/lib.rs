@@ -169,41 +169,6 @@ pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
 	};
 
-/*
-impl sp_consensus_babe::BabeApi<Block> for Runtime {
-    fn configuration() -> sp_consensus_babe::BabeConfiguration {
-        let epoch_config = Babe::epoch_config().unwrap_or(BABE_GENESIS_EPOCH_CONFIG);
-        sp_consensus_babe::BabeConfiguration {
-            slot_duration: Babe::slot_duration(),
-            epoch_length: EpochDuration::get(),
-            c: epoch_config.c,
-            authorities: Babe::authorities().to_vec(),
-            randomness: Babe::randomness(),
-            allowed_slots: epoch_config.allowed_slots,
-        }
-    }
-    // ... resto de métodos
-}
-
-*/
-
-// use sp_runtime::traits::Saturating;
-
-/*
-impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
-    fn find_author<'a, I>(digests: I) -> Option<H160>
-    where
-        I: 'a + IntoIterator<Item = (sp_runtime::ConsensusEngineId, &'a [u8])>,
-    {
-        if let Some(author_index) = F::find_author(digests) {
-            let authority_id = Babe::authorities()[author_index as usize].clone();
-            return Some(H160::from_slice(&authority_id.0.to_raw_vec()[4..24]));
-        }
-        None
-    }
-}
-*/
-
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -329,6 +294,7 @@ parameter_types! {
 }
 
 pub struct ConsensusOnTimestampSet<T>(PhantomData<T>);
+
 /*
 impl<T: pallet_aura::Config> OnTimestampSet<T::Moment> for ConsensusOnTimestampSet<T> {
 	fn on_timestamp_set(moment: T::Moment) {
@@ -340,12 +306,22 @@ impl<T: pallet_aura::Config> OnTimestampSet<T::Moment> for ConsensusOnTimestampS
 }
 */
 
+
 impl pallet_timestamp::Config for Runtime {
-	type Moment = u64;
-	type OnTimestampSet = Babe;  //ConsensusOnTimestampSet<Self>;
-	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
-	type WeightInfo = ();
+    type Moment = u64;
+    // CORRECCIÓN: Usar el tipo unitario para evitar el pánico de aserción de BABE.
+    // El consenso gestionará esto de forma nativa a través de los inherents.
+    type OnTimestampSet = (); 
+    type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
+    type WeightInfo = ();
 }
+
+//impl pallet_timestamp::Config for Runtime {
+//	type Moment = u64;
+//	type OnTimestampSet = Babe;  //ConsensusOnTimestampSet<Self>;
+//	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
+//	type WeightInfo = ();
+//}
 
 pub const EXISTENTIAL_DEPOSIT: u128 = 0;
 
@@ -773,6 +749,7 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 	}
 }
 
+ 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	frame_benchmarking::define_benchmarks!(
@@ -785,19 +762,6 @@ mod benches {
 	);
 }
 
-/*
-#[sp_version::runtime_version]
-pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: Cow::Borrowed("tokfin"),
-    impl_name: Cow::Borrowed("tokfin"),
-    authoring_version: 1,
-    spec_version: 1,
-    impl_version: 1,
-    apis: sp_version::create_apis_vec!([]), // Por ahora
-    transaction_version: 1,
-    system_version: 1,
-};
-*/
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -892,18 +856,6 @@ impl_runtime_apis! {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
 		}
 	}
-
-/*
-	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-		fn slot_duration() -> sp_consensus_aura::SlotDuration {
-			sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
-		}
-
-		fn authorities() -> Vec<AuraId> {
-			pallet_aura::Authorities::<Runtime>::get().into_inner()
-		}
-	}
-*/
 
 	impl sp_consensus_babe::BabeApi<Block> for Runtime {
 		fn configuration() -> sp_consensus_babe::BabeConfiguration {
@@ -1302,6 +1254,7 @@ impl frame_benchmarking::Benchmark<Block> for Runtime {
 	}
 }
 
+/*
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
     frame_benchmarking::define_benchmarks!(
@@ -1313,19 +1266,6 @@ mod benches {
         [pallet_evm, EVM]
     );
 }
-
-/*
-#[sp_version::runtime_version]
-pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: Cow::Borrowed("tokfin"),
-    impl_name: Cow::Borrowed("tokfin"),
-    authoring_version: 1,
-    spec_version: 1,
-    impl_version: 1,
-    apis: RUNTIME_APIS, // Ahora ya existe
-    transaction_version: 1,
-    system_version: 1,
-};
 */
 
 #[cfg(test)]
@@ -1345,18 +1285,10 @@ mod tests {
 impl pallet_tkf_foundation::Config for Runtime {}
 impl pallet_tkf_devteam::Config for Runtime {}
 impl pallet_tkf_cteam::Config for Runtime {}
-
 impl pallet_tkf_storage::Config for Runtime {}
-
-
 impl pallet_tkf_cauth::Config for Runtime {}
-
-
 impl pallet_tkf_orchestra::Config for Runtime {}
-
-
 impl pallet_tkf_daosrv::Config for Runtime {}
-
-
 impl pallet_tkf_dashboard::Config for Runtime {}
+
 

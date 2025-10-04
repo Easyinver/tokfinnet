@@ -16,6 +16,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 async-trait = { workspace = true }
 clap = { workspace = true }
 futures = { workspace = true }
+hex = {workspace = true } 
 hex-literal = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server", "macros"] }
 log = { workspace = true }
@@ -60,7 +61,7 @@ pallet-transaction-payment-rpc = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 substrate-frame-rpc-system = { workspace = true }
 # These dependencies are used for runtime benchmarking
-frame-benchmarking = { workspace = true, optional = true }
+frame-benchmarking = { workspace = true, optional = true}
 frame-benchmarking-cli = { workspace = true, optional = true }
 frame-system = { workspace = true }
 pallet-transaction-payment = { workspace = true }
@@ -82,6 +83,11 @@ tokfin-runtime = { workspace = true, features = ["std"] }
 
 # Cumulus primitives
 cumulus-primitives-proof-size-hostfunction = { workspace = true }
+cumulus-client-service = { workspace = true }
+
+num-traits = "0.2.19"
+sp-storage = { git = "https://github.com/paritytech/polkadot-sdk", branch = "stable2506", version = "22.0.0" }
+
 
 [build-dependencies]
 substrate-build-script-utils = { workspace = true }

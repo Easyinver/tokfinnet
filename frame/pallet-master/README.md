@@ -26,4 +26,6 @@ integritee:  node, workers, parachain, pallets
 	https://github.com/integritee-network
 	https://docs.integritee.network/
 
-    
+
+Parallel processing
+	https://arxiv.org/pdf/1803.09029  Massa Scalibity pdf

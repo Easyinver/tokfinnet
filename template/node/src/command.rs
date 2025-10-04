@@ -1,16 +1,21 @@
 use futures::TryFutureExt;
 // Substrate
-use sc_cli::{ChainSpec, SubstrateCli};
+//use sc_cli::{ChainSpec, SubstrateCli};
+use sc_cli::SubstrateCli; // Sin ChainSpec
 use sc_service::DatabaseSource;
+//use crate::service::db_config_dir;
+use crate::service::{db_config_dir, Sealing};
+
 // Tokfin
 use fc_db::kv::tokfin_database_dir;
 
 use crate::{
-	chain_spec,
+//	chain_spec,
 	cli::{Cli, Subcommand},
+	service,
 //	service::{self, db_config_dir},
-	service::self,
-	eth::db_config_dir,
+//	service::self,
+//	eth::db_config_dir,
 };
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -41,6 +46,57 @@ impl SubstrateCli for Cli {
 		2021
 	}
 
+
+	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+    	Ok(match id {
+        	"dev" | "development" => Box::new(crate::chain_spec::development_config(false)),
+        	"" | "local" => Box::new(crate::chain_spec::local_testnet_config()),
+        	path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
+            	std::path::PathBuf::from(path),
+        	)?),
+    	})
+	}
+/*
+	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+        Ok(match id {
+            "dev" | "development" => Box::new(crate::chain_spec::development_config()?),
+            "" | "local" => Box::new(crate::chain_spec::local_testnet_config()?),
+            path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
+        })
+    }
+*/
+/*
+	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+        Ok(match id {
+            "dev" | "development" => {
+                Box::new(chain_spec::development_config()?)
+            }
+            "" | "local" => Box::new(chain_spec::local_testnet_config()?),
+            path => Box::new(chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
+        })
+    }
+*/
+
+/*	
+	fn load_spec(id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+		Ok(match id {
+			"dev" | "development" => {
+				// Remover el parámetro enable_manual_seal
+				Box::new(chain_spec::development_config()?)
+			}
+			"" | "local" => Box::new(chain_spec::local_testnet_config()?),
+			path => Box::new(chain_spec::ChainSpec::from_json_file(
+				std::path::PathBuf::from(path),
+			)?),
+		})
+	}
+*/
+
+/*
 	fn load_spec(&self, id: &str) -> Result<Box<dyn ChainSpec>, String> {
 		Ok(match id {
 			"dev" => {
@@ -53,6 +109,8 @@ impl SubstrateCli for Cli {
 			)?),
 		})
 	}
+*/
+
 }
 
 /// Parse and run command line arguments
@@ -231,7 +289,8 @@ pub fn run() -> sc_cli::Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				service::build_full(config, cli.eth, cli.sealing)
+				service::build_full(config, cli.eth, cli.sealing.map(Sealing::from))
+//				service::build_full(config, cli.eth, cli.sealing)
 					.map_err(Into::into)
 					.await
 			})

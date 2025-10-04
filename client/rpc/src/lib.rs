@@ -18,7 +18,7 @@
 
 
 //use sc_consensus_babe as _;
-
+/*
 #![allow(
 	clippy::too_many_arguments,
 	clippy::large_enum_variant,
@@ -28,7 +28,7 @@
 	clippy::new_without_default
 )]
 #![warn(unused_crate_dependencies)]
-
+*/
 mod cache;
 mod debug;
 mod eth;

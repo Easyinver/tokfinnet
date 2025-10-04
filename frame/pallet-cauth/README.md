@@ -17,3 +17,7 @@ Esqueleto de pallet FRAME para Tokfinet.
 * Registro de **DApps** y **Smart Contracts** en el catálogo.
 * Clasificación según nivel de seguridad y permisos.
 * Cada SMC registrado se convierte en un **activo confiable en la red**.
+
+
+https://github.com/zupzup/blogchain-example-substrate
+https://www.zupzup.org/archive/
