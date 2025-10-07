@@ -11,6 +11,7 @@ pub type FullBackend<B> = sc_service::TFullBackend<B>;
 pub type FullClient<B, RA, HF> = sc_service::TFullClient<B, RA, WasmExecutor<HF>>;
 
 /// A set of APIs that every runtime must implement.
+
 pub trait BaseRuntimeApiCollection<Block: BlockT>:
 	sp_api::ApiExt<Block>
 	+ sp_api::Metadata<Block>
@@ -20,6 +21,7 @@ pub trait BaseRuntimeApiCollection<Block: BlockT>:
 	+ sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 {
 }
+
 
 impl<Block, Api> BaseRuntimeApiCollection<Block> for Api
 where

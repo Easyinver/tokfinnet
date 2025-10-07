@@ -119,10 +119,12 @@ pub fn run() -> sc_cli::Result<()> {
 
 	match &cli.subcommand {
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
+
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
 		}
+
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
@@ -286,6 +288,18 @@ pub fn run() -> sc_cli::Result<()> {
 				cmd.run(client, tokfin_backend)
 			})
 		}
+
+
+/*
+		None => {
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|config| async move {
+				let eth_config = EthConfiguration::default();
+				tokfin_service::new_full(config, eth_config, None).await
+			})
+		}
+*/
+
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {

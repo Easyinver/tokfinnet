@@ -5,7 +5,8 @@ use crate::eth::{
 	TokfinPartialComponents,
 };
 pub use crate::eth::db_config_dir;
-use futures::{future, prelude::*};
+//use futures::{future, prelude::*};
+use futures::{future};
 use sc_client_api::{Backend, BlockBackend};
 use sc_consensus_babe::{BabeLink, SlotProportion};
 use sc_consensus_grandpa::BlockNumberOps;
@@ -36,6 +37,12 @@ use tokfin_runtime::{
 use sp_api::ConstructRuntimeApi;
 use sp_runtime::codec;
 use sp_core::U256;
+//use sc_consensus_manual_seal::{self, run_manual_seal, Sealing, ManualSealParams, ConsensusDataProvider};
+
+//use std::sync::Arc;
+//use sc_client_api::BlockchainEvents;
+//use sc_consensus::BlockOrigin;
+//use sp_runtime::traits::Block as BlockT;
 
 // Constants
 const GRANDPA_JUSTIFICATION_PERIOD: u32 = 512;
@@ -63,11 +70,11 @@ type HostFunctions = (
     frame_benchmarking::benchmarking::HostFunctions,
 );
 
-type ParachainClient<RuntimeApi> = TFullClient<Block, RuntimeApi, WasmExecutor<HostFunctions>>;
+//type ParachainClient<RuntimeApi> = TFullClient<Block, RuntimeApi, WasmExecutor<HostFunctions>>;
 
 type BoxBlockImport<B> = sc_consensus::BoxBlockImport<B>;
 
-pub type TransactionConverter = fp_rpc::NoTransactionConverter;
+//pub type TransactionConverter = fp_rpc::NoTransactionConverter;
 
 type BasicQueue<B> = sc_consensus::DefaultImportQueue<B>;
 type TransactionPoolHandle<B, C> = sc_transaction_pool::TransactionPoolHandle<B, C>;
@@ -154,7 +161,161 @@ impl<B: BlockT, T> EthCompatRuntimeApiCollection<B> for T where
 
 use sc_service::PartialComponents;
 
+
+/*
+//use sc_consensus_manual_seal::{self as manual_seal, consensus::ManualSealConsensusDataProvider};
+//use sc_consensus::{BlockImportParams, BlockImportParamsExt};
+use futures::StreamExt;
+
+pub fn new_instant_seal(config: Configuration) -> Result<TaskManager, ServiceError> {
+    let sc_service::PartialComponents {
+        client,
+        backend,
+        task_manager,
+        import_queue,
+        keystore_container,
+        select_chain,
+        transaction_pool,
+        other: (rpc_extensions_builder, telemetry, _telemetry_worker_handle),
+    } = new_partial(&config)?;
+
+    let proposer_factory = sc_basic_authorship::ProposerFactory::new(
+        task_manager.spawn_handle(),
+        client.clone(),
+        transaction_pool.clone(),
+        config.prometheus_registry(),
+        telemetry.as_ref().map(|x| x.handle()),
+    );
+
+    let consensus_data_provider = Box::new(ManualSealConsensusDataProvider::new(
+        client.clone(),
+        Arc::new(move |block| {
+            log::info!("Instant Seal: sealing block #{}", block.header().number());
+            Ok(())
+        }),
+    ));
+
+    let (mut command_sink, command_stream) = futures::channel::mpsc::channel(1024);
+
+  /*
+    // Autoría instantánea de bloques
+    let seal_future = manual_seal::run_manual_seal(
+        manual_seal::ManualSealParams {
+            block_import: client.clone(),
+            env: proposer_factory,
+            client: client.clone(),
+            pool: transaction_pool.clone(),
+            commands_stream: command_stream,
+            select_chain,
+            consensus_data_provider,
+            create_inherent_data_providers: move |_, _| async move { Ok(()) }.boxed(),
+        },
+    );
+*/
+
+//    task_manager.spawn_essential_handle().spawn_blocking("instant-seal", None, seal_future);
+
+	let (sender, receiver) = futures::channel::mpsc::channel(1);
+	let client_for_seal = client.clone();
+	let pool_for_seal = transaction_pool.clone();
+
+	let seal_future = run_manual_seal(ManualSealParams {
+		block_import,
+		env: sc_basic_authorship::ProposerFactory::new(
+			task_manager.spawn_handle(),
+			client_for_seal.clone(),
+			pool_for_seal.clone(),
+			prometheus_registry.as_ref(),
+			telemetry.as_ref().map(|x| x.handle()),
+		),
+		client: client_for_seal,
+		pool: pool_for_seal,
+		commands_stream: receiver,
+		select_chain,
+		consensus_data_provider: Some(Box::new(ManualSealConsensusDataProvider::new())),
+		create_inherent_data_providers: move |_, _| async move {
+			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+			Ok((timestamp,))
+		},
+	});
+
+	task_manager
+		.spawn_essential_handle()
+		.spawn_blocking("instant-seal", None, seal_future);
+
+
+    Ok(task_manager)
+}
+*/
+
+
 /// Build import queue for BABE + GRANDPA consensus with Frontier support
+pub fn build_babe_grandpa_import_queue<B, RA, HF>(
+	client: Arc<FullClient<B, RA, HF>>,
+	config: &Configuration,
+	eth_config: &EthConfiguration,
+	task_manager: &TaskManager,
+	telemetry: Option<sc_telemetry::TelemetryHandle>,
+	grandpa_block_import: GrandpaBlockImport<B, FullClient<B, RA, HF>>,
+	backend: Arc<FullBackend<B>>,
+) -> Result<(BasicQueue<B>, BoxBlockImport<B>, BabeLink<B>), ServiceError>
+where
+	B: BlockT,
+	sp_runtime::traits::NumberFor<B>: BlockNumberOps + num_traits::AsPrimitive<usize>,
+	RA: ConstructRuntimeApi<B, FullClient<B, RA, HF>>,
+	RA: Send + Sync + 'static,
+	RA::RuntimeApi: RuntimeApiCollection<B, AccountId, Nonce, Balance>,
+	HF: sc_executor::HostFunctions + 'static,
+{
+	// Wrap GRANDPA block import with Frontier (Tokfin)
+	let frontier_block_import =
+		TokfinBlockImport::new(grandpa_block_import.clone(), client.clone());
+
+	// Create BABE block import (wraps Frontier)
+	let (block_import, babe_link) = sc_consensus_babe::block_import(
+		sc_consensus_babe::configuration(&*client)?,
+		frontier_block_import,
+		client.clone(),
+	)?;
+
+	let slot_duration = babe_link.config().slot_duration();
+	let select_chain = sc_consensus::LongestChain::new(backend);
+	let target_gas_price = eth_config.target_gas_price;
+
+	// CRITICAL: 3 providers for import queue to match block authoring
+	// Must include dynamic_fee because runtime has pallet_dynamic_fee
+	let create_inherent_data_providers = move |_, ()| async move {
+		let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+		let slot =
+			sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
+				*timestamp,
+				slot_duration,
+			);
+		let dynamic_fee = fp_dynamic_fee::InherentDataProvider(U256::from(target_gas_price));
+		Ok((slot, timestamp, dynamic_fee))
+	};
+
+	let import_queue = sc_consensus_babe::import_queue(sc_consensus_babe::ImportQueueParams {
+		link: babe_link.clone(),
+		block_import: block_import.clone(),
+		justification_import: Some(Box::new(grandpa_block_import)),
+		client: client.clone(),
+		select_chain,
+		create_inherent_data_providers,
+		spawner: &task_manager.spawn_essential_handle(),
+		registry: config.prometheus_registry(),
+		telemetry,
+		offchain_tx_pool_factory: sc_transaction_pool_api::OffchainTransactionPoolFactory::new(
+			sc_transaction_pool_api::RejectAllTxPool::default(),
+		),
+	})?;
+
+	Ok((import_queue.0, Box::new(block_import), babe_link))
+}
+
+
+
+/*
 pub fn build_babe_grandpa_import_queue<B, RA, HF>(
 	client: Arc<FullClient<B, RA, HF>>,
 	config: &Configuration,
@@ -215,11 +376,13 @@ where
 
 	Ok((import_queue.0, Box::new(block_import), babe_link))
 }
+*/
+
 
 /// Build import queue for manual seal (instant/manual sealing)
 
 /// Build import queue for manual seal (instant/manual sealing)  
-pub fn build_manual_seal_import_queue<B, RA, HF>(
+pub fn build_instant_seal_import_queue<B, RA, HF>(
 	client: Arc<FullClient<B, RA, HF>>,
 	config: &Configuration,
 	_eth_config: &EthConfiguration,
@@ -485,7 +648,7 @@ where
 	NB: sc_network::NetworkBackend<B, <B as BlockT>::Hash>,
 {
 	let build_import_queue = if sealing.is_some() {
-		build_manual_seal_import_queue::<B, RA, HF>
+		build_instant_seal_import_queue::<B, RA, HF>
 	} else {
 		build_babe_grandpa_import_queue::<B, RA, HF>
 	};
@@ -559,19 +722,22 @@ where
 		})?;
 
 	if config.offchain_worker.enabled {
-		let offchain_workers =
-			sc_offchain::OffchainWorkers::new(sc_offchain::OffchainWorkerOptions {
-				runtime_api_provider: client.clone(),
-				is_validator: config.role.is_authority(),
-				keystore: Some(keystore_container.keystore()),
-				offchain_db: backend.offchain_storage(),
-				transaction_pool: Some(OffchainTransactionPoolFactory::new(
-					transaction_pool.clone(),
-				)),
-				network_provider: Arc::new(network.clone()),
-				enable_http_requests: true,
-				custom_extensions: |_| vec![],
-			})?;
+//		let offchain_workers =
+//			sc_offchain::OffchainWorkers::new(sc_offchain::OffchainWorkerOptions {
+//				runtime_api_provider: client.clone(),
+//				is_validator: config.role.is_authority(),
+//				keystore: Some(keystore_container.keystore()),
+//				offchain_db: backend.offchain_storage(),
+//				transaction_pool: Some(OffchainTransactionPoolFactory::new(
+//					transaction_pool.clone(),
+//				)),
+//				network_provider: Arc::new(network.clone()),
+//				enable_http_requests: true,
+//				custom_extensions: |_| vec![],
+//			})?;
+
+			
+/*
 		task_manager.spawn_handle().spawn(
 			"offchain-workers-runner",
 			"offchain-worker",
@@ -579,6 +745,7 @@ where
 				.run(client.clone(), task_manager.spawn_handle())
 				.boxed(),
 		);
+*/
 	}
 
 	let role = config.role;
@@ -953,13 +1120,45 @@ pub fn new_chain_ops(
 	} = new_partial::<Block, RuntimeApi, HostFunctions, _>(
 		config,
 		eth_config,
-		build_babe_grandpa_import_queue,
+		// build_babe_grandpa_import_queue,
+		build_instant_seal_import_queue,
 	)?;
 	Ok((client, backend, import_queue, task_manager, other.3))
 }
 
 
+/*
+/// Implementación mínima para manual-seal (no aura/babe)
+pub struct ManualSealConsensusDataProvider;
 
+impl<B> ConsensusDataProvider<B> for ManualSealConsensusDataProvider
+where
+    B: BlockT,
+{
+    fn create_inherent_data_providers(
+        &self,
+        _parent: B::Hash,
+        _parent_header: &B::Header,
+    ) -> Result<(), sp_inherents::Error> {
+        Ok(())
+    }
+
+    fn block_import_params(
+        &self,
+        _origin: BlockOrigin,
+        _header: B::Header,
+    ) -> sc_consensus::BlockImportParams<B> {
+		Default::default()
+	}
+}
+
+impl ManualSealConsensusDataProvider {
+    pub fn new() -> Self {
+        ManualSealConsensusDataProvider
+    }
+}
+
+*/
 
 /*
 use std::{cell::RefCell, path::Path, sync::Arc, time::Duration};
